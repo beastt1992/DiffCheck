@@ -2,42 +2,42 @@
 
 ---
 
-# DiffCheck.lsp — AutoCAD Region Diff Comparison Tool
+# DiffCheck.lsp — Auto-Mark Revision Clouds for Design Changes
 
-**Compare two drawing regions inside the same DWG and highlight differences with revision clouds.**
+**Stop circling changes by hand. Select old and new, get revision clouds instantly.**
 
 ---
 
 ## What it does
 
-* Select two regions in the same DWG — **Region A (old)** and **Region B (new)**
-* Automatically calculates the offset between regions using **Spatial Anchor Voting**
-* Compares every object by generating deterministic geometry signatures
-* Draws **red revision clouds** around detected differences on Region B
-* Nearby changes are **merged into grouped clouds** — clean, readable output
-* Oversized background elements (title blocks, borders) are **automatically filtered**
-* O(N log N) performance — handles 1400+ objects in seconds
+Every design revision requires marking what changed with revision clouds — for review, for building permits, for your own sanity. Everyone does this by hand. DiffCheck does it in seconds.
+
+* Select **Region A (old)** and **Region B (new)** in the same DWG
+* Automatically aligns the two regions using **Spatial Anchor Voting**
+* Compares every object and finds what's different
+* Draws **red revision clouds** around changes — ready for submission
+* Nearby changes are **merged into clean grouped clouds**
+* O(N log N) performance — 1400+ objects in seconds
 
 ---
 
 ## The Problem
 
-AutoCAD's built-in **DWG Compare** only works between two separate files. But architects often keep old and new versions **side by side in the same DWG** — after copying a floor plan to revise it, there's no quick way to spot what actually changed.
-
 ```
-Changed a few lines in the base plan
-→ Visually compare two drawings side by side?
-→ What changed? What didn't?
-→ Miss one line, and construction goes wrong
+Design revision submitted
+→ Circle all changes with revision clouds
+→ Did I get them all? Did I miss that wall I moved?
+→ Reviewer finds unmarked changes
+→ Rejected, redo
 ```
 
-Manually scanning two complex drawings for differences is slow, error-prone, and painful.
+Manual cloud marking is tedious, error-prone, and happens every single revision cycle. AutoCAD's built-in DWG Compare only works between two separate files and outputs color overlays — not revision clouds you can submit.
 
 ---
 
 ## The Solution
 
-DiffCheck lets you window-select two regions, automatically aligns them, compares every object, and draws revision clouds around the differences — all in seconds.
+DiffCheck compares two regions inside the same DWG and outputs real revision clouds on a dedicated layer. Toggle the layer, print, submit.
 
 ---
 
@@ -58,11 +58,9 @@ DiffCheck lets you window-select two regions, automatically aligns them, compare
 
 Type `DFC`:
 
-1. **Window-select Region A** (the old / original drawing)
-2. **Window-select Region B** (the new / revised drawing)
-3. Done — red revision clouds appear around differences on Region B
-
-The command line will show results:
+1. **Window-select Region A** — the previous version
+2. **Window-select Region B** — the revised version
+3. Done — red revision clouds appear around every change
 
 ```
 Select Region A (old):
@@ -79,9 +77,9 @@ Select Region B (new):
   Time: 1.23s
 ```
 
-### Step 2 — Review
+### Step 2 — Review and submit
 
-Toggle the `DIFF_CLOUD` layer on/off to review differences against the original drawing.
+The clouds are on the `DIFF_CLOUD` layer. Toggle visibility, adjust if needed, print.
 
 ### Step 3 — Clean up
 
@@ -93,7 +91,7 @@ Type `DFCC` to erase all revision clouds when done.
 
 | Command | Description |
 |---------|-------------|
-| `DFC` | Run region comparison |
+| `DFC` | Run comparison, generate revision clouds |
 | `DFCC` | Clear all revision clouds |
 | `DFCT` | Adjust merge distance, padding, and arc size |
 
@@ -127,15 +125,13 @@ Type `DFCC` to erase all revision clouds when done.
    based on type + geometry (rounded to tolerance)
 
 4. Sorted Merge  O(N log N)
-   Sort both signature lists
-   → single-pass linear scan to find differences
+   Sort both lists → single-pass linear scan
 
 5. Box Merging
-   Collect bounding boxes of diff objects
-   → merge nearby boxes into groups
+   Nearby diff bounding boxes → merged groups
 
-6. Draw Revision Clouds
-   One red cloud per merged group on DIFF_CLOUD layer
+6. Revision Clouds
+   One cloud per group on DIFF_CLOUD layer
 ```
 
 ---
@@ -154,8 +150,8 @@ Adjust with `DFCT` or modify at the top of the file:
 
 **Tips:**
 - Too many false positives? Increase `*dc:tol*` (try 5.0 or 10.0)
-- Clouds too large and overlapping? Decrease `*dc:merge*`
-- Auto-alignment failed? The tool will prompt you to click two matching reference points manually
+- Clouds too large? Decrease `*dc:merge*`
+- Auto-alignment failed? The tool prompts you to click two matching reference points manually
 
 ---
 
@@ -165,9 +161,9 @@ Adjust with `DFCT` or modify at the top of the file:
 |------|---------|
 | Hatch (fill patterns) | Skipped — seed points are unstable across edits |
 | LEADER / MLEADER | Skipped in current version |
-| Auto-alignment failed | Tool prompts for manual 2-point alignment |
+| Auto-alignment failed | Prompts for manual 2-point alignment |
 | 2D only | Z coordinates are not compared |
-| Block attributes | INSERT uses name/scale/rotation, not attribute values |
+| Block attributes | Compares name/scale/rotation, not attribute values |
 
 ---
 
@@ -185,13 +181,13 @@ Also works with BricsCAD, GstarCAD, and other AutoLISP-compatible CAD platforms.
 ## Troubleshooting
 
 **Too many clouds / false positives?**
-Increase tolerance with `DFCT` or set `*dc:tol*` to 5.0. Dimension text position micro-shifts are the most common cause.
+Increase tolerance with `DFCT` or set `*dc:tol*` to 5.0. Dimension text micro-shifts are the most common cause.
 
 **Offset looks wrong?**
-If auto-alignment gets less than 3 votes, the tool will ask you to click two matching reference points. Pick a column center or wall corner that exists in both regions.
+If auto-alignment gets less than 3 votes, you'll be prompted to click two matching reference points. Pick a column center or wall corner that exists in both regions.
 
 **Nothing happened after running?**
-Check that both regions contain supported entity types (LINE, CIRCLE, etc.). Objects on locked or frozen layers may not be selected.
+Check that both regions contain supported entity types. Objects on locked or frozen layers may not be selected.
 
 ---
 
@@ -199,13 +195,13 @@ Check that both regions contain supported entity types (LINE, CIRCLE, etc.). Obj
 
 | Version | Notes |
 |---------|-------|
-| v21 | O(N log N) sorted merge, spatial anchor voting, localized box merging, giant element filter, manual alignment fallback, command aliases changed to DFC/DFCC/DFCT |
+| v21 | O(N log N) sorted merge, spatial anchor voting, localized box merging, giant element filter, manual alignment fallback |
 
 ---
 
 ## Support This Project
 
-If DiffCheck has saved you time, consider buying me a coffee ☕
+If DiffCheck saved you from hand-circling revision clouds, consider buying me a coffee ☕
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/beastt1992)
 
@@ -217,4 +213,4 @@ MIT License — Free to use, modify, and distribute.
 
 ---
 
-**Made with ❤️ for AutoCAD users.**
+**Made with ❤️ for architects who are tired of circling clouds by hand.**
