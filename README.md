@@ -25,10 +25,10 @@
 AutoCAD's built-in **DWG Compare** only works between two separate files. But architects often keep old and new versions **side by side in the same DWG** — after copying a floor plan to revise it, there's no quick way to spot what actually changed.
 
 ```
-底圖改了幾條線
-→ 肉眼比對兩張圖？
-→ 哪裡改了？哪裡沒改？
-→ 漏看一條線，施工就出問題
+Changed a few lines in the base plan
+→ Visually compare two drawings side by side?
+→ What changed? What didn't?
+→ Miss one line, and construction goes wrong
 ```
 
 Manually scanning two complex drawings for differences is slow, error-prone, and painful.
