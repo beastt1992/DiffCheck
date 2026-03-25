@@ -1,8 +1,9 @@
 ;;;============================================================
-;;; DiffCheck.lsp v21 (Command Alias Fix)
+;;; DiffCheck.lsp v21.1 (Command Alias Fix + Attribute Check)
 ;;; O(N log N) Fast Core + Spatial Anchor + Localized Box Merging.
 ;;; Draws optimized Revision Clouds for nearby changes.
 ;;; Changed aliases to DFC/DFCC/DFCT to avoid ADCENTER conflict.
+;;; Added Block Attribute deep comparison (Tags & Values).
 ;;; Commands:  DFC / DFCC / DFCT
 ;;; Layers:    DIFF_CLOUD (Red Revision Cloud)
 ;;;============================================================
@@ -32,10 +33,13 @@
   (if (or (< (car p2) (car p1)) (and (= (car p2) (car p1)) (< (cadr p2) (cadr p1))))
     (progn (setq tmp p1 p1 p2 p2 tmp)))
   (strcat "L," (dc:pf p1) "," (dc:pf p2)))
+
 (defun dc:sig-circle (e o)
   (strcat "C," (dc:pf (dc:pr (dc:psub (cdr (assoc 10 e)) o))) "," (dc:f (dc:rnd (cdr (assoc 40 e))))))
+
 (defun dc:sig-arc (e o)
   (strcat "A," (dc:pf (dc:pr (dc:psub (cdr (assoc 10 e)) o))) "," (dc:f (dc:rnd (cdr (assoc 40 e)))) "," (dc:f (dc:rnd (cdr (assoc 50 e)))) "," (dc:f (dc:rnd (cdr (assoc 51 e))))))
+
 (defun dc:sig-lwpoly (e o / pts bul s i p b cl np)
   (setq pts '() bul '())
   (foreach g e
@@ -47,10 +51,38 @@
   (setq s (strcat "P," cl) np (length pts) i 0)
   (while (< i np) (setq s (strcat s "," (dc:pf (nth i pts)) "," (dc:f (nth i bul))) i (1+ i)))
   s)
+
 (defun dc:sig-text (e o)
   (strcat "T," (dc:pf (dc:pr (dc:psub (cdr (assoc 10 e)) o))) "," (dc:f (dc:rnd (if (assoc 40 e) (cdr (assoc 40 e)) 0.0))) "," (if (assoc 1 e) (cdr (assoc 1 e)) "")))
-(defun dc:sig-insert (e o)
-  (strcat "I," (if (assoc 2 e) (cdr (assoc 2 e)) "?") "," (dc:pf (dc:pr (dc:psub (cdr (assoc 10 e)) o))) "," (dc:f (dc:rnd (if (assoc 41 e) (cdr (assoc 41 e)) 1.0))) "," (dc:f (dc:rnd (if (assoc 42 e) (cdr (assoc 42 e)) 1.0))) "," (dc:f (dc:rnd (if (assoc 50 e) (cdr (assoc 50 e)) 0.0)))))
+
+;;; --- MODIFIED: Added Block Attribute Extraction ---
+(defun dc:sig-insert (e o / nm atts ent nxt tg vl)
+  (setq nm (if (assoc 2 e) (cdr (assoc 2 e)) "?"))
+  
+  ;; Ignore anonymous block name variations (*U, *X) caused by copy-pasting
+  (if (wcmatch nm "`**") (setq nm "ANON"))
+  
+  ;; Extract attributes if they exist (assoc 66 = 1)
+  (setq atts "")
+  (if (= (cdr (assoc 66 e)) 1) 
+    (progn
+      (setq ent (cdr (assoc -1 e)))
+      (while (= (cdr (assoc 0 (setq nxt (entget (setq ent (entnext ent)))))) "ATTRIB")
+        (setq tg (cdr (assoc 2 nxt)))
+        (setq vl (cdr (assoc 1 nxt)))
+        (setq atts (strcat atts "|" tg "=" vl))
+      )
+    )
+  )
+  
+  (strcat "I," nm "," (dc:pf (dc:pr (dc:psub (cdr (assoc 10 e)) o))) "," 
+          (dc:f (dc:rnd (if (assoc 41 e) (cdr (assoc 41 e)) 1.0))) "," 
+          (dc:f (dc:rnd (if (assoc 42 e) (cdr (assoc 42 e)) 1.0))) "," 
+          (dc:f (dc:rnd (if (assoc 50 e) (cdr (assoc 50 e)) 0.0))) 
+          atts) ; Attach attribute string to the end of the signature
+)
+;;; --------------------------------------------------
+
 (defun dc:sig-dim (e o)
   (strcat "D," (itoa (if (assoc 70 e) (logand (cdr (assoc 70 e)) 7) 0)) "," (dc:f (if (assoc 42 e) (dc:rnd (cdr (assoc 42 e))) 0.0)) "," (if (assoc 1 e) (cdr (assoc 1 e)) "<>") "," (dc:pf (if (assoc 11 e) (dc:pr (dc:psub (cdr (assoc 11 e)) o)) '(0.0 0.0)))))
 
@@ -239,5 +271,5 @@
   (setq v (getreal "\n  New 'Arc Length' (0=cancel): ")) (if (and v (> v 0)) (setq *dc:arc* v))
   (princ)
 )
-(princ "\nDiffCheck v21 loaded. Commands: DFC, DFCC, DFCT")
+(princ "\nDiffCheck v21.1 loaded. Commands: DFC, DFCC, DFCT")
 (princ)
